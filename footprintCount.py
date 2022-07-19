@@ -1,5 +1,4 @@
 import streamlit as st
-from streamlit_folium import st_folium
 import json
 import requests
 import time
@@ -7,7 +6,8 @@ import utm
 import math
 from shapely.geometry import MultiPoint, Polygon, MultiPolygon
 import geopandas as gpd
-import folium
+import pydeck as pdk
+import pandas as pd
 
 
 st.set_page_config(layout="wide")
@@ -76,7 +76,6 @@ if uploaded:
     responses = []
     terrain = []
     
-    @st.cache(suppress_st_warning=True)
     t = st.empty()
     my_bar = st.progress(0)
     for x in range(0,len(height),10):
@@ -180,29 +179,37 @@ if uploaded:
     footprints_gdf = gpd.GeoDataFrame(list(zip(names,footprints_geom)), index=range(len(names)), 
                                       columns=['Image', 'geometry'], crs="EPSG:4326")
     
+    points_df = pd.DataFrame(list(zip(lat,lon)), index=range(len(lat)), columns=['lat', 'lon'])
+    
     
     # Plotting
-    tiles_url = 'https://api.mapbox.com/styles/v1/irwinamago/cl5se6c24000c15s3ned22n2f/tiles/256/{z}/{x}/{y}@2x?access_token=pk.eyJ1IjoiaXJ3aW5hbWFnbyIsImEiOiJjbDVzZHJ4bTIwYzJkM2RudzlvY3hxYnc1In0.OFOOtTA3hk_qEkfScdPyLg'
-    locs_map = folium.Map(location=[sum(lat)/len(lat), sum(lon)/len(lon)], tiles=tiles_url, attr='Mapbox Satellite')
-    sw = [min(lat),min(lon)]
-    ne = [max(lat),max(lon)]
-    locs_map.fit_bounds([sw,ne])
     
-    feature_points = folium.FeatureGroup(name='Images')
-    
-    for point in points_gdf['geometry']:
-        folium.CircleMarker(location=[point.y, point.x],
-                            radius=2,
-                            color='black',
-                            fill_color='black',
-                            fill=True).add_to(feature_points)
-    
-    folium.GeoJson(data=footprints_gdf['geometry'], 
-                   style_function=lambda x: {'weight': 1, 'fillOpacity': 0.3}).add_to(locs_map)
-    feature_points.add_to(locs_map)    
-    
-    st_data = st_folium(locs_map, width=1500)
-    
+    st.pydeck_chart(pdk.Deck(
+        map_style='mapbox://styles/mapbox/satellite-streets-v11',
+        initial_view_state=pdk.ViewState(
+            latitude=points_df['lat'].mean(),
+            longitude=points_df['lon'].mean(),
+            zoom=14,
+            pitch=0,
+        ),
+        layers=[
+            pdk.Layer(
+                'GeoJsonLayer',
+                data=footprints_gdf['geometry'],
+                get_fill_color='[39, 157, 245]',
+                get_line_color='[39, 157, 245]',
+                opacity=0.2,
+            ),
+            pdk.Layer(
+                'ScatterplotLayer',
+                data=points_df,
+                get_position='[lon, lat]',
+                get_color='[0, 0, 0]',
+                get_radius=5,
+                opacity=0.8
+            ),
+            ],
+    ))    
     st.stop()
 
 else:
