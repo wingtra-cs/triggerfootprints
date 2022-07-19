@@ -1,14 +1,13 @@
 import streamlit as st
 import json
 import requests
-import time
 import utm
 import math
-from shapely.geometry import MultiPoint, Polygon, MultiPolygon
+from shapely.geometry import Polygon, MultiPolygon
 import geopandas as gpd
 import pydeck as pdk
 import pandas as pd
-
+import rasterio.sample
 
 st.set_page_config(layout="wide")
 
@@ -72,124 +71,113 @@ if uploaded:
     
     # Converting to AGL
     
-    agl = []
-    responses = []
-    terrain = []
-    
-    t = st.empty()
-    my_bar = st.progress(0)
-    for x in range(0,len(height),10):
-        t.markdown('Visualizing Footprints... ' + str(100*round(x/len(height),2)) + '%')
-        my_bar.progress(x/len(height))
+    with st.spinner('Visualizing Footprints...'):
+        agl = []
+        terrain = []
         
-        call = ''
-        if x + 10 <= len(height):
-            for x in range(x,x+10):
-                call = call + str(lat[x]) + ',' + str(lon[x]) + '|'
-        else:
-            for x in range(x,len(height)):
-                call = call + str(lat[x]) + ',' + str(lon[x]) + '|'
+        south = min(lat) - 0.001
+        north = max(lat) + 0.001
+        west = min(lon) - 0.001
+        east = max(lon) + 0.001
+        api_key = '9650231c82589578832a8851f1692a2e'
         
-        call = call[:-1]
+        req = 'https://portal.opentopography.org/API/globaldem?demtype=SRTMGL3&south=' + str(south) + '&north=' + str(north) + '&west=' + str(west) + '&east=' + str(east) + '&outputFormat=GTiff&API_Key=' + api_key
         
-        req =  'http://api.opentopodata.org/v1/srtm90m?locations=' + call
-        resp = requests.get(req).json()
-        time.sleep(1)
+        resp = requests.get(req)
+        open('raster.tif', 'wb').write(resp.content)
+        elev = rasterio.open('raster.tif', crs='EPSG:4326')
+        points = list(zip(lon,lat))
         
-        for item in resp['results']:
-            terrain.append(item['elevation'])
+        ctr = 0
+        for val in elev.sample(points):
+            terrain.append(val[0])
+            agl.append(height[ctr] - val[0])
+            ctr += 1
+        
+        utm_points = []
+        for x in range(len(names)):
+            utm_conv = utm.from_latlon(points[x][1], points[x][0])
+            utm_points.append((utm_conv[0], utm_conv[1]))
+            utm_zone1 = utm_conv[2]
+            utm_zone2 = utm_conv[3]
+            
+            # Image Footprints
+            sensor_x = 35.8
+            sensor_y = 23.9
+            f = 35
+            hfv = 2*math.atan(sensor_x/(2*f))
+            vfv = 2*math.atan(sensor_y/(2*f))
+        
+        footprints = []
+        for x in range(len(utm_points)):
+            foot = []
+            for y in range(0,4):
+                if y == 0:
+                    dx = math.tan(hfv/2 + pitch[x])*agl[x]
+                    dy = math.tan(vfv/2 + roll[x])*agl[x]
+                    dutm_x = dx*math.cos(yaw[x]) - dy*math.sin(yaw[x])
+                    dutm_y = -dx*math.sin(yaw[x]) - dy*math.cos(yaw[x])
+                    utm_x = utm_points[x][0] + dutm_x
+                    utm_y = utm_points[x][1] + dutm_y
+                    
+                    lat_point = utm.to_latlon(utm_x, utm_y, utm_zone1, utm_zone2)[0]
+                    lon_point = utm.to_latlon(utm_x, utm_y, utm_zone1, utm_zone2)[1]
+                    foot.append([lon_point, lat_point])    
+                elif y == 1:
+                    dx = math.tan(-hfv/2 + pitch[x])*agl[x]
+                    dy = math.tan(vfv/2 + roll[x])*agl[x]
+                    dutm_x = dx*math.cos(yaw[x]) - dy*math.sin(yaw[x])
+                    dutm_y = -dx*math.sin(yaw[x]) - dy*math.cos(yaw[x])
+                    utm_x = utm_points[x][0] + dutm_x
+                    utm_y = utm_points[x][1] + dutm_y
+                    
+                    lat_point = utm.to_latlon(utm_x, utm_y, utm_zone1, utm_zone2)[0]
+                    lon_point = utm.to_latlon(utm_x, utm_y, utm_zone1, utm_zone2)[1]
+                    foot.append([lon_point, lat_point])    
+                elif y == 2:
+                    dx = math.tan(-hfv/2 + pitch[x])*agl[x]
+                    dy = math.tan(-vfv/2 + roll[x])*agl[x]
+                    dutm_x = dx*math.cos(yaw[x]) - dy*math.sin(yaw[x])
+                    dutm_y = -dx*math.sin(yaw[x]) - dy*math.cos(yaw[x])
+                    utm_x = utm_points[x][0] + dutm_x
+                    utm_y = utm_points[x][1] + dutm_y
+                    
+                    lat_point = utm.to_latlon(utm_x, utm_y, utm_zone1, utm_zone2)[0]
+                    lon_point = utm.to_latlon(utm_x, utm_y, utm_zone1, utm_zone2)[1]
+                    foot.append([lon_point, lat_point])  
+                elif y == 3:
+                    dx = math.tan(hfv/2 + pitch[x])*agl[x]
+                    dy = math.tan(-vfv/2 + roll[x])*agl[x]
+                    dutm_x = dx*math.cos(yaw[x]) - dy*math.sin(yaw[x])
+                    dutm_y = -dx*math.sin(yaw[x]) - dy*math.cos(yaw[x])
+                    utm_x = utm_points[x][0] + dutm_x
+                    utm_y = utm_points[x][1] + dutm_y
+                    
+                    lat_point = utm.to_latlon(utm_x, utm_y, utm_zone1, utm_zone2)[0]
+                    lon_point = utm.to_latlon(utm_x, utm_y, utm_zone1, utm_zone2)[1]
+                    foot.append([lon_point, lat_point])    
+        
+            poly = Polygon(foot)
+            footprints.append(poly)
+        
+        footprints_geom = MultiPolygon(footprints)
+        footprints_gdf = gpd.GeoDataFrame(list(zip(names,footprints_geom)), index=range(len(names)), 
+                                          columns=['Image', 'geometry'], crs="EPSG:4326")
+        
+        points_df = pd.DataFrame(list(zip(lat,lon)), index=range(len(lat)), columns=['lat', 'lon'])
     
-    my_bar.progress(1.0)
-    my_bar.empty()
-    t.markdown('Visualization Successful.')
-    
-    points = list(zip(lon,lat))
-    points_geom = MultiPoint(points)
-    utm_points = []
-    
-    for x in range(len(terrain)):
-        agl.append(height[x] - terrain[x])
-        utm_conv = utm.from_latlon(points[x][1], points[x][0])
-        utm_points.append((utm_conv[0], utm_conv[1]))
-        utm_zone1 = utm_conv[2]
-        utm_zone2 = utm_conv[3]
-    
-    # Image Footprints
-    sensor_x = 35.8
-    sensor_y = 23.9
-    f = 35
-    hfv = 2*math.atan(sensor_x/(2*f))
-    vfv = 2*math.atan(sensor_y/(2*f))
-    
-    footprints = []
-    for x in range(len(utm_points)):
-        foot = []
-        for y in range(0,4):
-            if y == 0:
-                dx = math.tan(hfv/2 + pitch[x])*agl[x]
-                dy = math.tan(vfv/2 + roll[x])*agl[x]
-                dutm_x = dx*math.cos(yaw[x]) - dy*math.sin(yaw[x])
-                dutm_y = -dx*math.sin(yaw[x]) - dy*math.cos(yaw[x])
-                utm_x = utm_points[x][0] + dutm_x
-                utm_y = utm_points[x][1] + dutm_y
-                
-                lat_point = utm.to_latlon(utm_x, utm_y, utm_zone1, utm_zone2)[0]
-                lon_point = utm.to_latlon(utm_x, utm_y, utm_zone1, utm_zone2)[1]
-                foot.append([lon_point, lat_point])    
-            elif y == 1:
-                dx = math.tan(-hfv/2 + pitch[x])*agl[x]
-                dy = math.tan(vfv/2 + roll[x])*agl[x]
-                dutm_x = dx*math.cos(yaw[x]) - dy*math.sin(yaw[x])
-                dutm_y = -dx*math.sin(yaw[x]) - dy*math.cos(yaw[x])
-                utm_x = utm_points[x][0] + dutm_x
-                utm_y = utm_points[x][1] + dutm_y
-                
-                lat_point = utm.to_latlon(utm_x, utm_y, utm_zone1, utm_zone2)[0]
-                lon_point = utm.to_latlon(utm_x, utm_y, utm_zone1, utm_zone2)[1]
-                foot.append([lon_point, lat_point])    
-            elif y == 2:
-                dx = math.tan(-hfv/2 + pitch[x])*agl[x]
-                dy = math.tan(-vfv/2 + roll[x])*agl[x]
-                dutm_x = dx*math.cos(yaw[x]) - dy*math.sin(yaw[x])
-                dutm_y = -dx*math.sin(yaw[x]) - dy*math.cos(yaw[x])
-                utm_x = utm_points[x][0] + dutm_x
-                utm_y = utm_points[x][1] + dutm_y
-                
-                lat_point = utm.to_latlon(utm_x, utm_y, utm_zone1, utm_zone2)[0]
-                lon_point = utm.to_latlon(utm_x, utm_y, utm_zone1, utm_zone2)[1]
-                foot.append([lon_point, lat_point])  
-            elif y == 3:
-                dx = math.tan(hfv/2 + pitch[x])*agl[x]
-                dy = math.tan(-vfv/2 + roll[x])*agl[x]
-                dutm_x = dx*math.cos(yaw[x]) - dy*math.sin(yaw[x])
-                dutm_y = -dx*math.sin(yaw[x]) - dy*math.cos(yaw[x])
-                utm_x = utm_points[x][0] + dutm_x
-                utm_y = utm_points[x][1] + dutm_y
-                
-                lat_point = utm.to_latlon(utm_x, utm_y, utm_zone1, utm_zone2)[0]
-                lon_point = utm.to_latlon(utm_x, utm_y, utm_zone1, utm_zone2)[1]
-                foot.append([lon_point, lat_point])    
-    
-        poly = Polygon(foot)
-        footprints.append(poly)
-    
-    footprints_geom = MultiPolygon(footprints)
-    points_gdf = gpd.GeoDataFrame(list(zip(names,points_geom)), index=range(len(names)), 
-                                  columns=['Image', 'geometry'], crs='EPSG:4326')
-    footprints_gdf = gpd.GeoDataFrame(list(zip(names,footprints_geom)), index=range(len(names)), 
-                                      columns=['Image', 'geometry'], crs="EPSG:4326")
-    
-    points_df = pd.DataFrame(list(zip(lat,lon)), index=range(len(lat)), columns=['lat', 'lon'])
-    
-    
+    st.success('Visualization Successful.')
     # Plotting
+    
+    view = pdk.data_utils.viewport_helpers.compute_view(points_df, view_proportion=1)
+    level = int(str(view).split('"zoom": ')[-1].split('}')[0])
     
     st.pydeck_chart(pdk.Deck(
         map_style='mapbox://styles/mapbox/satellite-streets-v11',
         initial_view_state=pdk.ViewState(
             latitude=points_df['lat'].mean(),
             longitude=points_df['lon'].mean(),
-            zoom=14,
+            zoom=level,
             pitch=0,
         ),
         layers=[
@@ -206,7 +194,7 @@ if uploaded:
                 get_position='[lon, lat]',
                 get_color='[0, 0, 0]',
                 get_radius=5,
-                opacity=0.8
+                opacity=0.7,
             ),
             ],
     ))    
