@@ -101,7 +101,7 @@ if uploaded:
     
     my_bar.progress(1.0)
     my_bar.empty()
-    t.markdonw('Visualization Successful.')
+    t.markdown('Visualization Successful.')
     
     points = list(zip(lon,lat))
     points_geom = MultiPoint(points)
