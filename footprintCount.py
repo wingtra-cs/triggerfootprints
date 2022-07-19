@@ -191,10 +191,10 @@ if uploaded:
             pdk.Layer(
                 'ScatterplotLayer',
                 data=points_df,
+                opacity=0.7,
                 get_position='[lon, lat]',
                 get_color='[0, 0, 0]',
                 get_radius=5,
-                opacity=0.7,
             ),
             ],
     ))    
