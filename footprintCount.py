@@ -76,6 +76,7 @@ if uploaded:
     responses = []
     terrain = []
     
+    @st.cache(suppress_st_warning=True)
     t = st.empty()
     my_bar = st.progress(0)
     for x in range(0,len(height),10):
