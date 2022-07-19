@@ -49,7 +49,6 @@ if uploaded:
         st.stop()
     
     st.success('JSON File Uploaded.')
-    
     st.subheader('There are ' + str(trigger_count) + ' triggers.')
     
     lat = []
@@ -99,10 +98,10 @@ if uploaded:
         
         for item in resp['results']:
             terrain.append(item['elevation'])
+    
     my_bar.progress(1.0)
     my_bar.empty()
-    st.success('Visualization Finished.')
-    t = st.empty()
+    t.markdonw('Visualization Successful.')
     
     points = list(zip(lon,lat))
     points_geom = MultiPoint(points)
@@ -199,9 +198,11 @@ if uploaded:
     
     folium.GeoJson(data=footprints_gdf['geometry'], 
                    style_function=lambda x: {'weight': 1, 'fillOpacity': 0.3}).add_to(locs_map)
-    feature_points.add_to(locs_map)
+    feature_points.add_to(locs_map)    
     
     st_data = st_folium(locs_map, width=1500)
+    
     st.stop()
+
 else:
     st.stop()
