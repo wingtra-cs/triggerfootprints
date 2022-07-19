@@ -202,6 +202,6 @@ if uploaded:
     feature_points.add_to(locs_map)
     
     st_data = st_folium(locs_map, width=1500)
-
+    st.stop()
 else:
     st.stop()
