@@ -50,6 +50,8 @@ if uploaded:
     st.success('JSON File Uploaded.')
     st.subheader('There are ' + str(trigger_count) + ' triggers.')
     
+    model = data['model']
+    
     lat = []
     lon = []
     roll = []
@@ -101,12 +103,16 @@ if uploaded:
             utm_zone1 = utm_conv[2]
             utm_zone2 = utm_conv[3]
             
-            # Image Footprints
-            sensor_x = 35.8
-            sensor_y = 23.9
-            f = 35
-            hfv = 2*math.atan(sensor_x/(2*f))
-            vfv = 2*math.atan(sensor_y/(2*f))
+        # Image Footprints
+        # {model: [x, y, f, tilt]}
+        img_param = {'RX1RII 42MP v4': [35.8, 23.9, 35, 0],
+                      'Micasense RE-P v4': [8.52, 7.10, 10.3, 0]}
+        sensor_x = img_param[model][0]
+        sensor_y = img_param[model][1]
+        f = img_param[model][2]
+        
+        hfv = 2*math.atan(sensor_x/(2*f))
+        vfv = 2*math.atan(sensor_y/(2*f))
         
         footprints = []
         for x in range(len(utm_points)):
