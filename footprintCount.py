@@ -96,6 +96,8 @@ if uploaded:
             agl.append(height[ctr] - val[0])
             ctr += 1
         
+        mean_agl = sum(agl)/len(agl)
+        st.subheader('Average AGL: ' + str(mean_agl) + '.')
         utm_points = []
         for x in range(len(names)):
             utm_conv = utm.from_latlon(points[x][1], points[x][0])
@@ -105,6 +107,8 @@ if uploaded:
             
         # Image Footprints
         # {model: [x, y, f, tilt]}
+        st.subheader('Payload Used: ' + model + '.')
+        
         img_param = {'RX1RII 42MP v4': [35.8, 23.9, 35, 0],
                       'Micasense RE-P v4': [8.52, 7.10, 10.3, 0]}
         sensor_x = img_param[model][0]
