@@ -111,7 +111,7 @@ if uploaded:
         st.text('Payload Used: ' + model + '.')
         
         if model[-2:] != 'v4':
-            model = model + ' v4'
+            model = model + " v4"
         
         img_param = {'RX1RII 42MP v4': [35.8, 23.9, 35, 0],
                       'Micasense RE-P v4': [8.52, 7.10, 10.3, 0]}
