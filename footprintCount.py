@@ -110,6 +110,8 @@ if uploaded:
                      'RX1RII 42MP v2': [35.8, 23.9, 35, 0],
                      'RX1RII 42MP': [35.8, 23.9, 35, 0],
                       'Micasense RE-P v4': [8.52, 7.10, 10.3, 0]}
+        
+        st.write(f'The average AGL of the mission is {round(sum(agl)/len(agl),2)} meters.')
         sensor_x = img_param[model][0]
         sensor_y = img_param[model][1]
         f = img_param[model][2]
