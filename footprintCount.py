@@ -96,9 +96,6 @@ if uploaded:
             agl.append(height[ctr] - val[0])
             ctr += 1
         
-        mean_agl = round(sum(agl)/len(agl),2)
-        st.text('Average AGL: ' + str(mean_agl) + ' meters.')
-        
         utm_points = []
         for x in range(len(names)):
             utm_conv = utm.from_latlon(points[x][1], points[x][0])
@@ -108,17 +105,15 @@ if uploaded:
             
         # Image Footprints
         # {model: [x, y, f, tilt]}
-        st.text('Payload Used: ' + model + '.')
-        
-        if model[-2:] != 'v4':
-            model = model + " v4"
-        
         img_param = {'RX1RII 42MP v4': [35.8, 23.9, 35, 0],
+                     'RX1RII 42MP v3': [35.8, 23.9, 35, 0],
+                     'RX1RII 42MP v2': [35.8, 23.9, 35, 0],
+                     'RX1RII 42MP': [35.8, 23.9, 35, 0],
                       'Micasense RE-P v4': [8.52, 7.10, 10.3, 0]}
         sensor_x = img_param[model][0]
         sensor_y = img_param[model][1]
         f = img_param[model][2]
-        
+            
         hfv = 2*math.atan(sensor_x/(2*f))
         vfv = 2*math.atan(sensor_y/(2*f))
         
@@ -175,7 +170,8 @@ if uploaded:
             footprints.append(poly)
         
         footprints_geom = MultiPolygon(footprints)
-        footprints_gdf = gpd.GeoDataFrame(list(zip(names,footprints_geom)), index=range(len(names)), 
+        footprints_geom_list = list(footprints_geom.geoms)
+        footprints_gdf = gpd.GeoDataFrame(list(zip(names,footprints_geom_list)), index=range(len(names)), 
                                           columns=['Image', 'geometry'], crs="EPSG:4326")
         
         points_df = pd.DataFrame(list(zip(lat,lon)), index=range(len(lat)), columns=['lat', 'lon'])
@@ -200,7 +196,8 @@ if uploaded:
                 data=footprints_gdf['geometry'],
                 get_fill_color='[39, 157, 245]',
                 get_line_color='[39, 157, 245]',
-                opacity=0.2,
+                opacity=0.1,
+                pickable=True,
             ),
             pdk.Layer(
                 'ScatterplotLayer',
@@ -209,6 +206,7 @@ if uploaded:
                 get_position='[lon, lat]',
                 get_color='[0, 0, 0]',
                 get_radius=5,
+                pickable=True,
             ),
             ],
     ))    
